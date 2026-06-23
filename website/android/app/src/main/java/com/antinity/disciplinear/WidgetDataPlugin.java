@@ -20,6 +20,7 @@ public class WidgetDataPlugin extends Plugin {
         Integer completed = call.getInt("completed", 0);
         Integer total = call.getInt("total", 0);
         Integer streak = call.getInt("streak", 0);
+        String habitsJson = call.getString("habitsJson", "[]");
 
         Context context = getContext();
         SharedPreferences sharedPref = context.getSharedPreferences("DisciplinearWidgetPref", Context.MODE_PRIVATE);
@@ -28,14 +29,25 @@ public class WidgetDataPlugin extends Plugin {
         editor.putInt("completed", completed);
         editor.putInt("total", total);
         editor.putInt("streak", streak);
-        editor.apply();
+        editor.putString("habitsJson", habitsJson);
+        editor.commit(); // Synchronous commit
 
-        // Trigger widget update
-        Intent intent = new Intent(context, HabitWidgetProvider.class);
-        intent.setAction(AppWidgetManager.ACTION_APPWIDGET_UPDATE);
-        int[] ids = AppWidgetManager.getInstance(context).getAppWidgetIds(new ComponentName(context, HabitWidgetProvider.class));
-        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
-        context.sendBroadcast(intent);
+        AppWidgetManager appWidgetManager = AppWidgetManager.getInstance(context);
+
+        // 1. Update HabitWidgetProvider (Summary)
+        int[] summaryIds = appWidgetManager.getAppWidgetIds(new ComponentName(context, HabitWidgetProvider.class));
+        if (summaryIds.length > 0) {
+            HabitWidgetProvider summaryProvider = new HabitWidgetProvider();
+            summaryProvider.onUpdate(context, appWidgetManager, summaryIds);
+        }
+
+        // 2. Update HabitsListWidgetProvider (List)
+        int[] listIds = appWidgetManager.getAppWidgetIds(new ComponentName(context, HabitsListWidgetProvider.class));
+        if (listIds.length > 0) {
+            HabitsListWidgetProvider listProvider = new HabitsListWidgetProvider();
+            listProvider.onUpdate(context, appWidgetManager, listIds);
+            appWidgetManager.notifyAppWidgetViewDataChanged(listIds, R.id.widget_habits_list);
+        }
 
         JSObject ret = new JSObject();
         ret.put("success", true);

@@ -197,11 +197,39 @@ export default function OptimisticDashboard({
       }
     }
 
+    // Format habits for widget list
+    const habitsPayload = activeHabits.map(h => {
+      const log = allLogs.find(l => l.log_date === today && l.habit_id === h.id);
+      const isCompleted = log ? log.is_completed : false;
+      let progressText = "";
+      if (h.type === 'amount' && h.target_value) {
+        const val = log?.value || 0;
+        progressText = `${val}/${h.target_value} ${h.unit || 'units'}`;
+      } else if (h.type === 'timer' && h.target_value) {
+        const val = log?.value || 0;
+        progressText = `${val}m/${h.target_value}m`;
+      }
+      return {
+        id: h.id,
+        name: h.name,
+        emoji: h.emoji || "✨",
+        color: h.color || "#5856d6",
+        completed: isCompleted,
+        progressText: progressText
+      };
+    });
+
     // Call native plugin
     import('@capacitor/core').then(({ registerPlugin }) => {
       try {
         const WidgetData = registerPlugin<any>('WidgetData');
-        WidgetData.update({ pct, completed, total, streak: maxStreak }).catch((err: any) => {
+        WidgetData.update({ 
+          pct, 
+          completed, 
+          total, 
+          streak: maxStreak,
+          habitsJson: JSON.stringify(habitsPayload)
+        }).catch((err: any) => {
           console.warn("Native widget update failed (expected if running in browser):", err);
         });
       } catch (e) {

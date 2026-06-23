@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -22,6 +22,16 @@ type TooltipState = {
 export default function HeatmapInline({ days }: { days: DayData[] }) {
   const [tooltip, setTooltip] = useState<TooltipState>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Group into columns of 7 (weeks)
   const weeks: (DayData | null)[][] = [];
@@ -99,12 +109,14 @@ export default function HeatmapInline({ days }: { days: DayData[] }) {
     setTooltip({ x: e.clientX + 4, y: e.clientY + 4, data: d });
   }, []);
 
+  const displayedWeeks = isMobile ? weeks.slice(-15) : weeks;
+
   return (
     <div ref={containerRef} className="relative w-full overflow-hidden">
       <div
         className="grid gap-[2px] w-full pt-[2px]"
         style={{
-          gridTemplateColumns: `auto repeat(${weeks.length}, 1fr)`,
+          gridTemplateColumns: `auto repeat(${displayedWeeks.length}, 1fr)`,
           gridTemplateRows: 'repeat(7, auto)'
         }}
       >
@@ -120,7 +132,7 @@ export default function HeatmapInline({ days }: { days: DayData[] }) {
         ))}
 
         {/* Data Cells */}
-        {weeks.map((weekData, wi) => (
+        {displayedWeeks.map((weekData, wi) => (
           weekData.map((d, di) => {
             const dateStyle = getColorStyle(d);
             return (

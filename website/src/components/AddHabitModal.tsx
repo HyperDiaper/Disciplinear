@@ -175,7 +175,7 @@ export function HabitForm({ initialData, onSubmit, onClose, submitLabel = 'Creat
 
       <div className="w-full h-[1px] bg-[var(--border-subtle)]" />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-[11px] font-bold text-[var(--text-muted)] tracking-wider uppercase mb-1.5 flex items-center gap-1.5"><Icon icon="lucide:activity" /> Type</label>
           <div className="flex glass-input rounded-[12px] p-1 shadow-inner">

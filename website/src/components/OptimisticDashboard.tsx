@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { format, subDays, eachDayOfInterval, startOfDay, startOfWeek, endOfWeek } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { format, subDays, eachDayOfInterval, startOfDay, startOfWeek, endOfWeek, parseISO, differenceInDays } from 'date-fns';
 import AddHabitModal from '@/components/AddHabitModal';
 import HabitList from '@/components/HabitList';
 import WeekdayStrip from '@/components/WeekdayStrip';
@@ -79,6 +79,7 @@ export default function OptimisticDashboard({
   const [localEdits, setLocalEdits] = useState<LocalEdit[]>([]);
   const [activeTab, setActiveTab] = useState<'habits' | 'widgets'>('habits');
 
+
   // Apply pending local edits on top of the server-provided log data
   const allLogs = useMemo(() => {
     let state = [...initialAllLogs];
@@ -123,6 +124,92 @@ export default function OptimisticDashboard({
 
   const habitCount = habits.length;
   const [selectedDateStr, setSelectedDateStr] = useState(today);
+
+  // Sync progress data with the native Android Home Screen Widget
+  useEffect(() => {
+    // Only update for "today"
+    if (selectedDateStr !== today) return;
+
+    // Recalculate completions
+    const dayOfWeek = format(parseISO(today), 'eee').toLowerCase();
+    const activeHabits = habits.filter((h) => {
+      if (h.start_date > today) return false;
+      let freqArr: string[] = [];
+      if (Array.isArray(h.frequency)) {
+        freqArr = h.frequency;
+      } else if (typeof h.frequency === 'string') {
+        try {
+          const parsed = JSON.parse(h.frequency);
+          freqArr = Array.isArray(parsed) ? parsed : [h.frequency];
+        } catch {
+          freqArr = [h.frequency];
+        }
+      }
+      return freqArr.includes('daily') || freqArr.includes(dayOfWeek);
+    });
+
+    const total = activeHabits.length;
+    if (total === 0) return;
+
+    const activeIds = new Set(activeHabits.map(h => h.id));
+    const completed = allLogs.filter(l => l.log_date === today && activeIds.has(l.habit_id) && l.is_completed).length;
+    const pct = Math.round((completed / total) * 100);
+
+    // Calculate highest streak
+    let maxStreak = 0;
+    for (const habit of habits) {
+      const isQuit = habit.mode === 'quit';
+      const habitLogs = allLogs.filter(l => l.habit_id === habit.id);
+      let streak = 0;
+      if (!isQuit) {
+        const dates = habitLogs.filter(l => l.is_completed).map(l => l.log_date || '').filter(Boolean).sort();
+        if (dates.length > 0) {
+          let current = 0;
+          const todayStr = today;
+          const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+          const lastLoggedDate = dates[dates.length - 1];
+          if (lastLoggedDate === todayStr || lastLoggedDate === yesterdayStr) {
+            current = 1;
+            for (let i = dates.length - 1; i > 0; i--) {
+              const diff = differenceInDays(parseISO(dates[i]), parseISO(dates[i - 1]));
+              if (diff === 1) {
+                current++;
+              } else if (diff > 1) {
+                break;
+              }
+            }
+          }
+          streak = current;
+        }
+      } else {
+        const relapses = habitLogs.filter(l => l.is_completed).map(l => l.log_date || '').filter(Boolean).sort();
+        const start = parseISO(habit.start_date);
+        const todayD = new Date();
+        if (relapses.length === 0) {
+          streak = Math.max(0, differenceInDays(todayD, start));
+        } else {
+          const lastRelapse = parseISO(relapses[relapses.length - 1]);
+          streak = Math.max(0, differenceInDays(todayD, lastRelapse));
+        }
+      }
+      if (streak > maxStreak) {
+        maxStreak = streak;
+      }
+    }
+
+    // Call native plugin
+    import('@capacitor/core').then(({ registerPlugin }) => {
+      try {
+        const WidgetData = registerPlugin<any>('WidgetData');
+        WidgetData.update({ pct, completed, total, streak: maxStreak }).catch((err: any) => {
+          console.warn("Native widget update failed (expected if running in browser):", err);
+        });
+      } catch (e) {
+        console.warn("Widget plugin not registered:", e);
+      }
+    });
+
+  }, [allLogs, habits, selectedDateStr, today]);
 
   const executeToggle = (habitId: string, isCompleted: boolean) => {
     const editId = Math.random().toString(36).substring(7);

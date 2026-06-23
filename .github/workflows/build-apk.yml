@@ -40,7 +40,14 @@ jobs:
       - name: Sync Capacitor Android
         run: |
           cd website
-          npx cap sync android
+          echo "=== CURRENT DIRECTORY ==="
+          pwd
+          echo "=== DIRECTORY CONTENTS ==="
+          ls -la
+          echo "=== RUNNING DOCTOR ==="
+          npx cap doctor || true
+          echo "=== RUNNING SYNC ==="
+          npx cap sync android --verbose
 
       - name: Build Android APK
         run: |

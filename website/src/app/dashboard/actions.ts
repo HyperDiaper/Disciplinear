@@ -84,18 +84,21 @@ export async function toggleHabitLog(habitId: string, logDate: string, isComplet
   if (!user) return { error: 'Not authenticated' };
 
   if (isCompleted) {
-    await supabase.from('habit_logs').upsert({
+    const { error } = await supabase.from('habit_logs').upsert({
       habit_id: habitId,
       user_id: user.id,
       log_date: logDate,
       is_completed: true,
       value: 1,
     }, { onConflict: 'habit_id,log_date' });
+    if (error) { console.error(error); return { error: error.message }; }
   } else {
-    await supabase.from('habit_logs').delete().match({ habit_id: habitId, log_date: logDate, user_id: user.id });
+    const { error } = await supabase.from('habit_logs').delete().match({ habit_id: habitId, log_date: logDate, user_id: user.id });
+    if (error) { console.error(error); return { error: error.message }; }
   }
 
   revalidatePath('/dashboard');
+  return { success: true };
 }
 
 // ─── Adjust Habit Log Value ───────────────────────────────────────────────────
@@ -105,28 +108,36 @@ export async function adjustHabitLogValue(habitId: string, logDate: string, delt
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: 'Not authenticated' };
 
-  const { data: log } = await supabase.from('habit_logs')
+  const { data: log, error: fetchError } = await supabase.from('habit_logs')
     .select('value, is_completed')
     .match({ habit_id: habitId, log_date: logDate, user_id: user.id })
     .single();
 
-  const currentValue = log?.value || 0;
+  // If error is not a 406 (Postgres Code PGRST116: no rows returned), log the error.
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Fetch log error:', fetchError);
+  }
+
+  const currentValue = Number(log?.value) || 0;
   const newValue = Math.max(0, currentValue + delta);
   const isCompleted = newValue >= targetValue;
 
   if (newValue === 0 && !isCompleted) {
-    await supabase.from('habit_logs').delete().match({ habit_id: habitId, log_date: logDate, user_id: user.id });
+    const { error } = await supabase.from('habit_logs').delete().match({ habit_id: habitId, log_date: logDate, user_id: user.id });
+    if (error) { console.error(error); return { error: error.message }; }
   } else {
-    await supabase.from('habit_logs').upsert({
+    const { error } = await supabase.from('habit_logs').upsert({
       habit_id: habitId,
       user_id: user.id,
       log_date: logDate,
       is_completed: isCompleted,
       value: newValue,
     }, { onConflict: 'habit_id,log_date' });
+    if (error) { console.error(error); return { error: error.message }; }
   }
 
   revalidatePath('/dashboard');
+  return { success: true };
 }
 
 // ─── Save Settings ────────────────────────────────────────────────────────────

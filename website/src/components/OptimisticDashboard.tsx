@@ -1,6 +1,6 @@
 'use client';
 
-import { useOptimistic, useTransition, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format, subDays, eachDayOfInterval, startOfDay, startOfWeek, endOfWeek } from 'date-fns';
 import AddHabitModal from '@/components/AddHabitModal';
 import HabitList from '@/components/HabitList';
@@ -58,9 +58,9 @@ function ConfirmationModal({ isOpen, onConfirm, onCancel, date }: { isOpen: bool
   );
 }
 
-type Action = 
-  | { type: 'toggle'; habitId: string; isCompleted: boolean; date: string }
-  | { type: 'adjust'; habitId: string; date: string; delta: number; target: number };
+type LocalEdit = 
+  | { id: string; type: 'toggle'; habitId: string; date: string; isCompleted: boolean }
+  | { id: string; type: 'adjust'; habitId: string; date: string; delta: number; target: number };
 
 export default function OptimisticDashboard({
   habits,
@@ -75,66 +75,98 @@ export default function OptimisticDashboard({
   today: string;
   currentYear: number;
 }) {
-  const [isPending, startTransition] = useTransition();
   const [showConfirm, setShowConfirm] = useState<{ action: 'toggle' | 'adjust', habitId: string, isCompleted?: boolean, delta?: number, target?: number } | null>(null);
+  const [localEdits, setLocalEdits] = useState<LocalEdit[]>([]);
 
-  const [allLogs, dispatchOptimisticLog] = useOptimistic(
-    initialAllLogs,
-    (state, action: Action) => {
-      if (action.type === 'toggle') {
-        const { habitId, isCompleted, date } = action;
+  // Apply pending local edits on top of the server-provided log data
+  const allLogs = useMemo(() => {
+    let state = [...initialAllLogs];
+    for (const edit of localEdits) {
+      if (edit.type === 'toggle') {
+        const { habitId, isCompleted, date } = edit;
         const existingIdx = state.findIndex(l => l.habit_id === habitId && l.log_date === date);
         if (isCompleted) {
-          if (existingIdx > -1) return state; // Already exists
-          return [...state, { habit_id: habitId, log_date: date, is_completed: true }];
+          if (existingIdx === -1) {
+            state.push({ habit_id: habitId, log_date: date, is_completed: true, value: 1 });
+          } else {
+            state[existingIdx] = { ...state[existingIdx], is_completed: true, value: 1 };
+          }
         } else {
-          if (existingIdx === -1) return state; // Doesn't exist
-          return state.filter((_, i) => i !== existingIdx);
+          if (existingIdx > -1) {
+            state = state.filter((_, i) => i !== existingIdx);
+          }
         }
-      } else if (action.type === 'adjust') {
-        const { habitId, date, delta, target } = action;
+      } else if (edit.type === 'adjust') {
+        const { habitId, date, delta, target } = edit;
         const existingIdx = state.findIndex(l => l.habit_id === habitId && l.log_date === date);
         let currentVal = 0;
-        if (existingIdx > -1) currentVal = state[existingIdx].value || 0;
+        if (existingIdx > -1) currentVal = Number(state[existingIdx].value) || 0;
         const newVal = Math.max(0, currentVal + delta);
         const isCompleted = newVal >= target;
         
         if (existingIdx > -1) {
-          const newState = [...state];
           if (newVal === 0 && !isCompleted) {
-            newState.splice(existingIdx, 1);
+            state = state.filter((_, i) => i !== existingIdx);
           } else {
-            newState[existingIdx] = { ...newState[existingIdx], value: newVal, is_completed: isCompleted };
+            state[existingIdx] = { ...state[existingIdx], value: newVal, is_completed: isCompleted };
           }
-          return newState;
         } else {
           if (newVal > 0 || isCompleted) {
-            return [...state, { habit_id: habitId, log_date: date, value: newVal, is_completed: isCompleted }];
+            state.push({ habit_id: habitId, log_date: date, value: newVal, is_completed: isCompleted });
           }
-          return state;
         }
       }
-      return state;
     }
-  );
+    return state;
+  }, [initialAllLogs, localEdits]);
 
   const habitCount = habits.length;
   const [selectedDateStr, setSelectedDateStr] = useState(today);
 
-  const executeToggle = async (habitId: string, isCompleted: boolean) => {
-    startTransition(async () => {
-      dispatchOptimisticLog({ type: 'toggle', habitId, isCompleted, date: selectedDateStr });
-      await toggleHabitLog(habitId, selectedDateStr, isCompleted);
-    });
+  const executeToggle = (habitId: string, isCompleted: boolean) => {
+    const editId = Math.random().toString(36).substring(7);
+    const newEdit: LocalEdit = { id: editId, type: 'toggle', habitId, date: selectedDateStr, isCompleted };
+    
+    // 1. Instantly update the local UI state
+    setLocalEdits(prev => [...prev, newEdit]);
     setShowConfirm(null);
+
+    // 2. Perform background sync asynchronously
+    (async () => {
+      try {
+        const res = await toggleHabitLog(habitId, selectedDateStr, isCompleted);
+        if (res?.error) throw new Error(res.error);
+      } catch (err: any) {
+        console.error("Sync error:", err);
+        alert("Unable to sync changes to the database. Reverting checkmark.");
+      } finally {
+        // Remove the local edit to fall back to the revalidated server state
+        setLocalEdits(prev => prev.filter(e => e.id !== editId));
+      }
+    })();
   };
 
-  const executeAdjust = async (habitId: string, delta: number, target: number) => {
-    startTransition(async () => {
-      dispatchOptimisticLog({ type: 'adjust', habitId, date: selectedDateStr, delta, target });
-      await adjustHabitLogValue(habitId, selectedDateStr, delta, target);
-    });
+  const executeAdjust = (habitId: string, delta: number, target: number) => {
+    const editId = Math.random().toString(36).substring(7);
+    const newEdit: LocalEdit = { id: editId, type: 'adjust', habitId, date: selectedDateStr, delta, target };
+
+    // 1. Instantly update the local UI state
+    setLocalEdits(prev => [...prev, newEdit]);
     setShowConfirm(null);
+
+    // 2. Perform background sync asynchronously
+    (async () => {
+      try {
+        const res = await adjustHabitLogValue(habitId, selectedDateStr, delta, target);
+        if (res?.error) throw new Error(res.error);
+      } catch (err: any) {
+        console.error("Sync error:", err);
+        alert("Unable to sync changes to the database. Reverting adjustments.");
+      } finally {
+        // Remove the local edit to fall back to the revalidated server state
+        setLocalEdits(prev => prev.filter(e => e.id !== editId));
+      }
+    })();
   };
 
   const handleToggle = async (habitId: string, isCompleted: boolean) => {
@@ -142,7 +174,7 @@ export default function OptimisticDashboard({
       setShowConfirm({ action: 'toggle', habitId, isCompleted });
       return;
     }
-    await executeToggle(habitId, isCompleted);
+    executeToggle(habitId, isCompleted);
   };
 
   const handleAdjust = async (habitId: string, delta: number, target: number) => {
@@ -150,7 +182,7 @@ export default function OptimisticDashboard({
       setShowConfirm({ action: 'adjust', habitId, delta, target });
       return;
     }
-    await executeAdjust(habitId, delta, target);
+    executeAdjust(habitId, delta, target);
   };
 
   // Recalculate everything based on optimistic logs

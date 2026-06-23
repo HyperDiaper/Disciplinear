@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, subDays } from 'date-fns';
 import Twemoji from './Twemoji';
 
 // Audio tone generator using Web Audio API
@@ -143,8 +143,20 @@ export default function WidgetsPanel({
     return habits.filter((h) => {
       // Filter out habits that started after the selected day
       if (h.start_date > today) return false;
-      const freq = typeof h.frequency === 'string' ? JSON.parse(h.frequency) : h.frequency;
-      return freq.includes('daily') || freq.includes(dayOfWeek);
+      
+      let freqArr: string[] = [];
+      if (Array.isArray(h.frequency)) {
+        freqArr = h.frequency;
+      } else if (typeof h.frequency === 'string') {
+        try {
+          const parsed = JSON.parse(h.frequency);
+          freqArr = Array.isArray(parsed) ? parsed : [h.frequency];
+        } catch {
+          freqArr = [h.frequency];
+        }
+      }
+      
+      return freqArr.includes('daily') || freqArr.includes(dayOfWeek);
     });
   }, [habits, today]);
 
@@ -293,7 +305,7 @@ export default function WidgetsPanel({
         if (dates.length > 0) {
           let current = 0;
           const todayStr = format(new Date(), 'yyyy-MM-dd');
-          const yesterdayStr = format(differenceInDays(new Date(), 1) === 0 ? new Date() : new Date(Date.now() - 86400000), 'yyyy-MM-dd');
+          const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
           
           // Check if streak is active (completed today or yesterday)
           const lastLoggedDate = dates[dates.length - 1];

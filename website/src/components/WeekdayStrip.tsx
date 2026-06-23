@@ -46,7 +46,7 @@ export default function WeekdayStrip({
       </Popover>
 
       {/* Weekday Strip */}
-      <div className="flex-1 flex justify-between items-center bg-[var(--bg-input)] p-1 rounded-full border border-[var(--border-subtle)] overflow-x-auto custom-scrollbar">
+      <div className="flex-1 min-w-0 flex justify-between items-center bg-[var(--bg-input)] p-1 rounded-full border border-[var(--border-subtle)] overflow-x-auto custom-scrollbar">
         {days.map((d, i) => {
           const active = d.isSelected || d.isToday && !selectedDate;
           return (

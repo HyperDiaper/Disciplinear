@@ -324,7 +324,7 @@ function HabitCard({
 
         <button
           onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-          className="opacity-0 group-hover:opacity-100 p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
+          className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
         >
           <Pencil size={18} />
         </button>
@@ -333,7 +333,7 @@ function HabitCard({
         <div className="flex items-center gap-1.5 shrink-0 pr-1" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => setShowAnalytics(true)}
-            className="opacity-0 group-hover:opacity-100 p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
+            className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-2 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all"
           >
             <BarChart2 size={18} />
           </button>

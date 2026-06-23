@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useRef, useEffect, useOptimistic } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Pencil, Trash2, BarChart2 } from 'lucide-react';
 import { toggleHabitLog, updateHabit, deleteHabit } from '@/app/dashboard/actions';
@@ -170,7 +170,6 @@ function HabitCard({
   onToggle: (newVal: boolean) => Promise<void>;
   onAdjust: (delta: number, target: number) => Promise<void>;
 }) {
-  const [isPending, startTransition] = useTransition();
   const [isEditing, setIsEditing] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const isQuit = habit.mode === 'quit';
@@ -216,9 +215,7 @@ function HabitCard({
     timerRef.current = setTimeout(() => {
       const finalDelta = pendingDeltaRef.current;
       if (finalDelta !== 0) {
-        startTransition(async () => {
-          await onAdjust(finalDelta, habit.target_value || 1);
-        });
+        onAdjust(finalDelta, habit.target_value || 1);
       }
       pendingDeltaRef.current = 0;
       setLocalDelta(0);
@@ -226,9 +223,7 @@ function HabitCard({
   };
 
   const handleToggle = () => {
-    startTransition(async () => {
-      await onToggle(!isCompleted);
-    });
+    onToggle(!isCompleted);
   };
 
   const getStreakIcon = (s: number, mode: 'build' | 'quit') => {
@@ -373,7 +368,7 @@ function HabitCard({
           ) : (
             <div
               onClick={handleToggle}
-              className={`w-[36px] h-[36px] rounded-full border-2 flex items-center justify-center transition-all cursor-pointer ${isPending ? 'opacity-40 animate-pulse' : ''}`}
+              className="w-[36px] h-[36px] rounded-full border-2 flex items-center justify-center transition-all cursor-pointer"
               style={{
                 borderColor: isQuit ? (finalIsCompleted ? '#ef4444' : habit.color) : habit.color,
                 backgroundColor: finalIsCompleted ? (isQuit ? '#ef4444' : habit.color) : 'transparent',

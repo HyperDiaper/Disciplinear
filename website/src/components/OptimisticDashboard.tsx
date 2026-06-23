@@ -6,6 +6,7 @@ import AddHabitModal from '@/components/AddHabitModal';
 import HabitList from '@/components/HabitList';
 import WeekdayStrip from '@/components/WeekdayStrip';
 import HeatmapInline from '@/components/HeatmapInline';
+import WidgetsPanel from '@/components/WidgetsPanel';
 import { toggleHabitLog, adjustHabitLogValue } from '@/app/dashboard/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@iconify/react';
@@ -274,23 +275,35 @@ export default function OptimisticDashboard({
         />
       </section>
 
-      <section>
-        <HabitList
-          habits={habits}
-          logs={viewedLogs}
-          today={selectedDateStr}
-          realToday={today}
-          allLogs={allLogs}
-          onToggle={handleToggle}
-          onAdjust={handleAdjust}
-        />
-      </section>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="lg:col-span-2">
+          <HabitList
+            habits={habits}
+            logs={viewedLogs}
+            today={selectedDateStr}
+            allLogs={allLogs}
+            onToggle={handleToggle}
+            onAdjust={handleAdjust}
+          />
+        </div>
+        <div className="lg:col-span-1">
+          <WidgetsPanel
+            habits={habits}
+            logs={viewedLogs}
+            today={selectedDateStr}
+            realToday={today}
+            allLogs={allLogs}
+            onToggle={handleToggle}
+            onAdjust={handleAdjust}
+          />
+        </div>
+      </div>
 
       {habitCount > 0 && (
         <section className="mt-8 p-6 rounded-[20px] glass-panel transition-all duration-300 w-full overflow-hidden">
           <h2 className="text-[13px] font-bold text-[var(--text-secondary)] mb-5 uppercase tracking-widest pl-1">Yearly Activity ({currentYear})</h2>
           <div className="w-full">
-            <HeatmapInline days={daysYear} totalHabits={habitCount} />
+            <HeatmapInline days={daysYear} />
           </div>
         </section>
       )}

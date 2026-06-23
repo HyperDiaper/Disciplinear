@@ -114,7 +114,7 @@ export function HabitForm({ initialData, onSubmit, onClose, submitLabel = 'Creat
                 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
                 className="absolute top-[60px] left-0 z-50 shadow-2xl rounded-2xl overflow-hidden custom-emoji-picker border border-[var(--border-subtle)]"
               >
-                <EmojiPicker onEmojiClick={e => { setEmoji(e.emoji); setShowEmoji(false); }} theme="auto" as any height={320} width={280} previewConfig={{ showPreview: false }} />
+                <EmojiPicker onEmojiClick={e => { setEmoji(e.emoji); setShowEmoji(false); }} theme={"auto" as any} height={320} width={280} previewConfig={{ showPreview: false }} />
               </motion.div>
             )}
           </AnimatePresence>

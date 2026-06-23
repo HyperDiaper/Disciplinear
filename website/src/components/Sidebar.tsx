@@ -10,7 +10,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-full glass-panel md:w-[260px] md:h-screen md:sticky top-0 flex flex-col pt-10 pb-6 px-4 md:px-6">
+    <div className="hidden md:flex md:w-[260px] md:h-screen md:sticky top-0 flex-col pt-10 pb-6 px-6 glass-panel border-r border-[var(--border-subtle)]/40 shrink-0">
       <div className="mb-10 pl-2">
         <Link href="/dashboard" className="font-black text-2xl tracking-tighter text-[var(--text-primary)] flex items-center gap-3 transition-transform origin-left">
           Disciplinear

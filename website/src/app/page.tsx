@@ -13,16 +13,42 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     const checkUser = async () => {
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.replace('/dashboard');
-      } else {
-        setLoading(false);
+      // 1.5 second fallback timeout to prevent getting stuck if network is sluggish
+      const timer = setTimeout(() => {
+        if (active) {
+          console.warn("Auth check timed out, falling back to landing page.");
+          setLoading(false);
+        }
+      }, 1500);
+
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        clearTimeout(timer);
+        if (active) {
+          if (session) {
+            router.replace('/dashboard');
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (err) {
+        clearTimeout(timer);
+        console.error("Auth check failed:", err);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
+
     checkUser();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   if (loading) {

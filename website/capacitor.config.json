@@ -3,7 +3,7 @@
   "appName": "Disciplinear",
   "webDir": "out",
   "server": {
-    "url": "http://192.168.1.106:3000",
+    "url": "https://disciplinear.vercel.app",
     "cleartext": true
   }
 }
